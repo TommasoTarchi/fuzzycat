@@ -32,11 +32,11 @@ if __name__ == '__main__':
 
     # Generate mean values
     np.random.seed(0)
-    background = np.random.uniform(-2, 2, (1000, 2))
-    moons, _ = data.make_moons(n_samples=2000, noise=0.1)
+    background = np.random.uniform(-2, 2, (10000, 2))
+    moons, _ = data.make_moons(n_samples=20000, noise=0.1)
     moons -= np.array([[0.5, 0.25]])    # centres moons on origin
-    gauss_1 = np.random.normal(-1.25, 0.2, (500, 2))
-    gauss_2 = np.random.normal(1.25, 0.2, (500, 2))
+    gauss_1 = np.random.normal(-1.25, 0.2, (5000, 2))
+    gauss_2 = np.random.normal(1.25, 0.2, (5000, 2))
 
     P = np.vstack([background, moons, gauss_1, gauss_2])
 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     # Run FuzzyCat
     nPoints = P.shape[0]
 
-    fc = FuzzyCat(nSamples, nPoints, verbose=1)
+    fc = FuzzyCat(nSamples, nPoints, verbose=2)
     fc.run()
 
     # Plot fuzzy clusters
