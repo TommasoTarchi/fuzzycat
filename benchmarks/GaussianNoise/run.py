@@ -35,10 +35,12 @@ if __name__ == '__main__':
     background = np.random.uniform(-2, 2, (10000, 2))
     moons, _ = data.make_moons(n_samples=20000, noise=0.1)
     moons -= np.array([[0.5, 0.25]])    # centres moons on origin
-    gauss_1 = np.random.normal(-1.25, 0.2, (5000, 2))
-    gauss_2 = np.random.normal(1.25, 0.2, (5000, 2))
+    gauss_1 = np.random.normal(-1.5, 0.1, (2500, 2))
+    gauss_2 = np.random.normal(-0.75, 0.1, (2500, 2))
+    gauss_3 = np.random.normal(0.75, 0.1, (2500, 2))
+    gauss_4 = np.random.normal(1.5, 0.1, (2500, 2))
 
-    P = np.vstack([background, moons, gauss_1, gauss_2])
+    P = np.vstack([background, moons, gauss_1, gauss_2, gauss_3, gauss_4])
 
     # Generate dataset
     covP = 0.05**2
