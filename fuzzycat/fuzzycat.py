@@ -203,7 +203,9 @@ class FuzzyCat:
         clstFileNamesFileBool = os.path.exists(self.directoryName + 'clusterFileNames.npy')
         pairsFileBool = os.path.exists(self.directoryName + 'pairs.npy')
         edgesFileBool = os.path.exists(self.directoryName + 'edges.npy')
-        
+
+        helpCounters = np.zeros(self.nPoints, dtype = np.bool_)
+
         # If so, load them, otherwise, compute them
         if clstFileNamesFileBool and pairsFileBool and edgesFileBool:
             self.clusterFileNames = np.load(self.directoryName + 'clusterFileNames.npy')
@@ -232,7 +234,9 @@ class FuzzyCat:
                     cluster_j, dataType_j = self.retrieveCluster(j)
 
                     # Calculate the similarity between clusters i and j
-                    if dataType_i == dataType_j == 1: self._edges[k] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
+                    if dataType_i == dataType_j == 1: 
+                        #self._edges[k] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
+                        self._edges[k] = self._jaccardIndex_njit_alt(cluster_i, cluster_j, helpCounters)
                     elif dataType_i == dataType_j:
                         self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
                     else:
@@ -252,6 +256,8 @@ class FuzzyCat:
                 np.save(self.directoryName + 'edges.npy', self._edges)
 
         self._similarityMatrixTime = time.perf_counter() - start
+
+        print(f"Time for similarity matrix: {self._similarityMatrixTime}")
 
     @staticmethod
     @njit()
@@ -282,6 +288,21 @@ class FuzzyCat:
         counts_c1 = np.zeros(nPoints, dtype = np.bool_)
         counts_c1[c1] = 1
         intersection = counts_c1[c2].sum()
+        return intersection/(c1.size + c2.size - intersection)
+
+    @staticmethod
+    @njit(fastmath = True, inline = 'always')
+    def _jaccardIndex_njit_alt(c1, c2, counts_c1):
+        counts_c1.fill(0)
+
+        for i in range(c1.shape[0]):
+            counts_c1[c1[i]] = True
+
+        intersection: int = 0
+        for i in range(c2.shape[0]):
+            if counts_c1[c2[i]]:
+                intersection += 1
+
         return intersection/(c1.size + c2.size - intersection)
     
     @staticmethod
