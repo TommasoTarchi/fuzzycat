@@ -241,8 +241,7 @@ class FuzzyCat:
 
                     # Calculate the similarity between clusters i and j
                     if dataType_i == dataType_j == 1:
-                        if clusteringNumbers[i] != clusteringNumbers[j]:
-                            self._edges[k] = self._jaccardIndex_njit(cluster_i.size, cluster_j, helpCounter)
+                        self._edges[k] = self._jaccardIndex_njit(cluster_i.size, cluster_j, helpCounter)
                     elif dataType_i == dataType_j:
                         self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
                     else:
