@@ -247,14 +247,13 @@ class FuzzyCat:
                     elif dataType_i == dataType_j:
                         self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
                     else:
+                        clusterFloating.fill(0)
                         if dataType_i == 1:
                             clusterFloating[cluster_i] = 1
                             self._edges[k] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
-                            clusterFloating[cluster_i] = 0
                         else:
                             clusterFloating[cluster_j] = 1
                             self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
-                            clusterFloating[cluster_j] = 0
                     k += 1
                         
             # Save arrays
