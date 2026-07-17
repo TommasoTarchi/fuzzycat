@@ -249,16 +249,16 @@ class FuzzyCat:
                 KNNGraph = NNDescent(
                     clustersMatrix,
                     metric="jaccard",
+                    n_neighbors=30,
                 )
 
                 neighborIndices, neighborDistances = KNNGraph.neighbor_graph
-                neighborSimilarities = 1.0 - neighborDistances
 
                 offset = 0
                 for clusterId in range(n_clusters):
                     for i, neighborId in enumerate(neighborIndices[clusterId]):
                         if neighborId > clusterId:
-                            self._edges[offset + neighborId - clusterId - 1] = neighborSimilarities[clusterId][i]
+                            self._edges[offset + neighborId - clusterId - 1] = 1.0 - neighborDistances[clusterId][i]
                     offset += n_clusters - 1 - clusterId
             else:
                 # Cycle through all pairs of clusters and compute their similarity
