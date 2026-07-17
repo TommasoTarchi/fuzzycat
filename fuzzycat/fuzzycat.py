@@ -14,6 +14,8 @@ import time
 # Third-party libraries
 import numpy as np
 from numba import njit
+import sklearn.datasets as data
+from pynndescent import NNDescent
 
 class FuzzyCat:
     """A class to represent the FuzzyCat algorithm.
@@ -158,12 +160,17 @@ class FuzzyCat:
             if returnLine: print(f"FuzzyCat: {message}\r", end = '')
             else: print(f"FuzzyCat: {message}")
     
-    def run(self):
+    def run(self, usePynnd: bool = True):
         """Runs the FuzzyCat algorithm and produces fuzzy clusters from a 
         directory containing a folder, 'Cluster/', with existing cluster files.
 
         This method runs `computeSimilarities()`, `aggregate()`, and
         `extractFuzzyClusters()`.
+
+        Parameters
+        ----------
+        usePynnd : `bool`
+            Whether pynndescent should be used to speed up graph contruction.
         """
 
         assert os.path.exists(self.directoryName + 'Clusters/'), f"Directory {self.directoryName + 'Clusters/'} does not exist!"
@@ -171,7 +178,7 @@ class FuzzyCat:
         begin = time.perf_counter()
 
         # Phase 1
-        self.computeSimilarities()
+        self.computeSimilarities(usePynnd)
 
         # Phase 2
         self.aggregate()
@@ -186,7 +193,7 @@ class FuzzyCat:
             self._printFunction(f"Extraction time    | {100*self._extractFuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
         self._printFunction(f"Completed          | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
 
-    def computeSimilarities(self):
+    def computeSimilarities(self, usePynnd: bool):
         """Computes the similarities between all pairs of clusters in the
         chosen directory.
 
@@ -194,6 +201,11 @@ class FuzzyCat:
         'Clusters/' that contains the cluster files.
 
         This method generates the `_pairs` and `_edges` attributes.
+
+        Parameters
+        ----------
+        usePynnd : `bool`
+            Whether pynndescent should be used to speed up graph contruction.
         """
 
         if self.verbose > 1: self._printFunction('Computing similarities...        ')
@@ -218,32 +230,61 @@ class FuzzyCat:
             clusteringNumbers = np.array([np.uint32(fileName.split('_')[0]) for fileName in self.clusterFileNames])
             self._pairs, self._edges = self._initGraph(n_clusters, self.windowSize, clusteringNumbers)
 
-            # Cycle through all pairs of clusters and compute their similarity
             self.lazyLoader = [False for i in range(n_clusters)]
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
-            k = 0
-            for i in range(n_clusters):
-                for j in range(i + 1, n_clusters):
-                    # Check if the window size has been reached
-                    if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: break
 
-                    # Load clusters
-                    cluster_i, dataType_i = self.retrieveCluster(i)
-                    cluster_j, dataType_j = self.retrieveCluster(j)
+            if usePynnd:
+                # TODO: add window (maybe useless in this case)
+                # TODO: add fuzzy input clusters option
 
-                    # Calculate the similarity between clusters i and j
-                    if dataType_i == dataType_j == 1: self._edges[k] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
-                    elif dataType_i == dataType_j:
-                        self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
-                    else:
-                        clusterFloating = np.zeros(self.nPoints)
-                        if dataType_i == 1:
-                            clusterFloating[cluster_i] = 1
-                            self._edges[k] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
+                # TODO: this is likely not feasible for large datasets
+                # Fetch all clusters and prepare format for pynnd
+                clustersMatrix = np.zeros((n_clusters, self.nPoints), dtype=np.bool_)
+
+                for i in range(n_clusters):
+                    cluster_i, _ = self.retrieveCluster(i)
+                    clustersMatrix[i, cluster_i] = True
+
+                # Build KNN graph
+                KNNGraph = NNDescent(
+                    clustersMatrix,
+                    metric="jaccard",
+                )
+
+                neighborIndices, neighborDistances = KNNGraph.neighbor_graph
+                neighborSimilarities = 1.0 - neighborDistances
+
+                offset = 0
+                for clusterId in range(n_clusters):
+                    for i, neighborId in enumerate(neighborIndices[clusterId]):
+                        if neighborId > clusterId:
+                            self._edges[offset + neighborId - clusterId - 1] = neighborSimilarities[i]
+                    offset += n_clusters - 1 - clusterId
+            else:
+                # Cycle through all pairs of clusters and compute their similarity
+                k = 0
+                for i in range(n_clusters):
+                    for j in range(i + 1, n_clusters):
+                        # Check if the window size has been reached
+                        if self.windowSize is not None and clusteringNumbers[i] + self.windowSize  - 1 < clusteringNumbers[j]: break
+
+                        # Load clusters
+                        cluster_i, dataType_i = self.retrieveCluster(i)
+                        cluster_j, dataType_j = self.retrieveCluster(j)
+
+                        # Calculate the similarity between clusters i and j
+                        if dataType_i == dataType_j == 1: self._edges[k] = self._jaccardIndex_njit(cluster_i, cluster_j, self.nPoints)
+                        elif dataType_i == dataType_j:
+                            self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, cluster_j)
                         else:
-                            clusterFloating[cluster_j] = 1
-                            self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
-                    k += 1
+                            clusterFloating = np.zeros(self.nPoints)
+                            if dataType_i == 1:
+                                clusterFloating[cluster_i] = 1
+                                self._edges[k] = self._weightedJaccardIndex_njit(clusterFloating, cluster_j)
+                            else:
+                                clusterFloating[cluster_j] = 1
+                                self._edges[k] = self._weightedJaccardIndex_njit(cluster_i, clusterFloating)
+                        k += 1
                         
             # Save arrays
             if self.checkpoint:
