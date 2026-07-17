@@ -160,7 +160,7 @@ class FuzzyCat:
             if returnLine: print(f"FuzzyCat: {message}\r", end = '')
             else: print(f"FuzzyCat: {message}")
     
-    def run(self, usePynnd: bool = True):
+    def run(self, usePynnd: bool = False):
         """Runs the FuzzyCat algorithm and produces fuzzy clusters from a 
         directory containing a folder, 'Cluster/', with existing cluster files.
 
@@ -258,7 +258,7 @@ class FuzzyCat:
                 for clusterId in range(n_clusters):
                     for i, neighborId in enumerate(neighborIndices[clusterId]):
                         if neighborId > clusterId:
-                            self._edges[offset + neighborId - clusterId - 1] = neighborSimilarities[i]
+                            self._edges[offset + neighborId - clusterId - 1] = neighborSimilarities[clusterId][i]
                     offset += n_clusters - 1 - clusterId
             else:
                 # Cycle through all pairs of clusters and compute their similarity
@@ -293,6 +293,8 @@ class FuzzyCat:
                 np.save(self.directoryName + 'edges.npy', self._edges)
 
         self._similarityMatrixTime = time.perf_counter() - start
+
+        print(f"Time for similarity matrix: {self._similarityMatrixTime}")
 
     @staticmethod
     @njit()
