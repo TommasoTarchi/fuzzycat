@@ -231,8 +231,7 @@ class FuzzyCat:
                 cluster_i, dataType_i = self.retrieveCluster(i)
                 if dataType_i == 1:
                     helpCounter.fill(0)
-                    for ii in range(cluster_i.size):
-                        helpCounter[cluster_i[ii]] = True
+                    helpCounter[cluster_i] = True
 
                 for j in range(i + 1, n_clusters):
                     # Check if the window size has been reached
