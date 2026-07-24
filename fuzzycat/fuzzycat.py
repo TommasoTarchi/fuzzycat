@@ -16,6 +16,7 @@ import numpy as np
 from numba import njit
 import sklearn.datasets as data
 from pynndescent import NNDescent
+import pynndescent
 
 class FuzzyCat:
     """A class to represent the FuzzyCat algorithm.
@@ -248,7 +249,7 @@ class FuzzyCat:
                 # Build KNN graph
                 KNNGraph = NNDescent(
                     clustersMatrix,
-                    metric="jaccard",
+                    metric=pynndescent.distances.jaccard,
                     n_neighbors=30,
                 )
 
