@@ -159,7 +159,7 @@ class FuzzyCat:
             if returnLine: print(f"FuzzyCat: {message}\r", end = '')
             else: print(f"FuzzyCat: {message}")
     
-    def run(self, usePynnd: bool = False):
+    def run(self, usePynndescent: bool = False):
         """Runs the FuzzyCat algorithm and produces fuzzy clusters from a 
         directory containing a folder, 'Cluster/', with existing cluster files.
 
@@ -168,7 +168,7 @@ class FuzzyCat:
 
         Parameters
         ----------
-        usePynnd : `bool`
+        usePynndescent : `bool`
             Whether pynndescent should be used to speed up graph contruction.
         """
 
@@ -177,7 +177,7 @@ class FuzzyCat:
         begin = time.perf_counter()
 
         # Phase 1
-        self.computeSimilarities(usePynnd)
+        self.computeSimilarities(usePynndescent)
 
         # Phase 2
         self.aggregate()
@@ -192,7 +192,7 @@ class FuzzyCat:
             self._printFunction(f"Extraction time    | {100*self._extractFuzzyClustersTime/self._totalTime:.2f}%    ", returnLine = False)
         self._printFunction(f"Completed          | {time.strftime('%Y-%m-%d %H:%M:%S')}       ", returnLine = False)
 
-    def computeSimilarities(self, usePynnd: bool):
+    def computeSimilarities(self, usePynndescent: bool):
         """Computes the similarities between all pairs of clusters in the
         chosen directory.
 
@@ -203,7 +203,7 @@ class FuzzyCat:
 
         Parameters
         ----------
-        usePynnd : `bool`
+        usePynndescent : `bool`
             Whether pynndescent should be used to speed up graph contruction.
         """
 
@@ -232,10 +232,9 @@ class FuzzyCat:
             self.lazyLoader = [False for i in range(n_clusters)]
             self.dataTypes = np.zeros(n_clusters, dtype = np.int8)
 
-            if usePynnd:
+            if usePynndescent:
                 # TODO: add window (maybe useless in this case)
                 # TODO: add fuzzy input clusters option
-                # TODO: skip clustersMatrix, and go directly from clusters retrieving to packed matrix
 
                 # TODO: this might not be feasible for large datasets
                 # Fetch all clusters and prepare bit matrix for pynndescent
@@ -243,7 +242,9 @@ class FuzzyCat:
                 clustersMatrix = np.zeros((n_clusters, clustersMatrixBytes), dtype=np.uint8)
 
                 for i in range(n_clusters):
-                    cluster_i, _ = self.retrieveCluster(i)
+                    cluster_i, dataType_i = self.retrieveCluster(i)
+                    if dataType_i != 1:
+                        self._printFunction(f"Cluster is not of type integer: currently, only integer clusters are allowed with PyNNDescent.")
                     for col in cluster_i:
                         byteIdx = col // 8
                         bitIdx = 7 - (col % 8)
@@ -298,7 +299,12 @@ class FuzzyCat:
 
         self._similarityMatrixTime = time.perf_counter() - start
 
+        # TODO: remove (only for debugging)
         print(f"Time for similarity matrix: {self._similarityMatrixTime}")
+
+        # TODO: remove (only for debugging)
+        with open("edges.txt", "w") as f:
+            np.savetxt(f, self._edges, fmt="%.3f")
 
     @staticmethod
     @njit()
