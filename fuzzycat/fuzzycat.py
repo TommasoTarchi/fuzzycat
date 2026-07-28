@@ -238,19 +238,20 @@ class FuzzyCat:
                 # TODO: skip clustersMatrix, and go directly from clusters retrieving to packed matrix
 
                 # TODO: this might not be feasible for large datasets
-                # Fetch all clusters and prepare matrix for pynndescent
-                clustersMatrix = np.zeros((n_clusters, self.nPoints), dtype=np.bool_)
+                # Fetch all clusters and prepare bit matrix for pynndescent
+                clustersMatrixBytes = (self.nPoints + 7) // 8
+                clustersMatrix = np.zeros((n_clusters, clustersMatrixBytes), dtype=np.uint8)
 
                 for i in range(n_clusters):
                     cluster_i, _ = self.retrieveCluster(i)
-                    clustersMatrix[i, cluster_i] = True
-
-                # Create packed matrix (i.e. use one bit per bool)
-                clustersMatrixPacked = np.packbits(clustersMatrix.astype(bool), axis=1)
+                    for col in cluster_i:
+                        byteIdx = col // 8
+                        bitIdx = 7 - (col % 8)
+                        clustersMatrix[i, byteIdx] |= 1 << bitIdx
 
                 # Build KNN graph
                 KNNGraph = pynndescent.NNDescent(
-                    clustersMatrixPacked,
+                    clustersMatrix,
                     metric="bit_jaccard",
                     n_neighbors=30,
                 )
