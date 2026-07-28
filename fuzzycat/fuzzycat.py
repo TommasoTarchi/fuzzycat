@@ -14,8 +14,6 @@ import time
 # Third-party libraries
 import numpy as np
 from numba import njit
-import sklearn.datasets as data
-from pynndescent import NNDescent
 import pynndescent
 
 class FuzzyCat:
@@ -237,19 +235,23 @@ class FuzzyCat:
             if usePynnd:
                 # TODO: add window (maybe useless in this case)
                 # TODO: add fuzzy input clusters option
+                # TODO: skip clustersMatrix, and go directly from clusters retrieving to packed matrix
 
-                # TODO: this is likely not feasible for large datasets
-                # Fetch all clusters and prepare format for pynnd
+                # TODO: this might not be feasible for large datasets
+                # Fetch all clusters and prepare matrix for pynndescent
                 clustersMatrix = np.zeros((n_clusters, self.nPoints), dtype=np.bool_)
 
                 for i in range(n_clusters):
                     cluster_i, _ = self.retrieveCluster(i)
                     clustersMatrix[i, cluster_i] = True
 
+                # Create packed matrix (i.e. use one bit per bool)
+                clustersMatrixPacked = np.packbits(clustersMatrix.astype(bool), axis=1)
+
                 # Build KNN graph
-                KNNGraph = NNDescent(
-                    clustersMatrix,
-                    metric=pynndescent.distances.jaccard,
+                KNNGraph = pynndescent.NNDescent(
+                    clustersMatrixPacked,
+                    metric="bit_jaccard",
                     n_neighbors=30,
                 )
 
