@@ -13,6 +13,7 @@ import time
 
 # Third-party libraries
 import numpy as np
+import numba
 from numba import njit
 import pynndescent
 
@@ -253,7 +254,9 @@ class FuzzyCat:
                 # Build KNN graph
                 KNNGraph = pynndescent.NNDescent(
                     clustersMatrix,
-                    metric="bit_jaccard",
+                    metric=self._bitJaccard_njit,
+                    bit_metric = True,
+                    angular_trees = True,
                     n_neighbors=30,
                 )
 
@@ -328,6 +331,45 @@ class FuzzyCat:
             else: assert False, f"Cluster from file '{fileName}' is of {cluster.dtype.type} data type (must be integer or floating)!"
             self.lazyLoader[index], self.dataTypes[index] = cluster, dataType
         return cluster, dataType
+
+    @staticmethod
+    @njit(
+        [
+            "f4(u1[::1],u1[::1])",
+            numba.types.float32(
+                numba.types.Array(numba.types.uint8, 1, "C", readonly=True),
+                numba.types.Array(numba.types.uint8, 1, "C", readonly=True),
+            ),
+        ],
+        fastmath=True,
+        nogil=True,
+        boundscheck=False,
+        locals={
+            "numEqual": numba.types.int32,
+            "numNonZero": numba.types.int32,
+            "and_": numba.types.uint8,
+            "or_": numba.types.uint8,
+            "dim": numba.types.intp,
+            "i": numba.types.uint16,
+        },
+    )
+    def _bitJaccard_njit(x, y):
+        r"""
+        """
+        numEqual = 0
+        numNonZero = 0
+        dim = x.shape[0]
+
+        for i in range(dim):
+            and_ = x[i] & y[i]
+            or_ = x[i] | y[i]
+            numEqual += pynndescent.distances.popcnt_u8(and_)
+            numNonZero += pynndescent.distances.popcnt_u8(or_)
+
+        if numNonZero == 0:
+            return 0.0
+        else:
+            return float(numNonZero - numEqual) / numNonZero
 
     @staticmethod
     @njit(fastmath = True)
