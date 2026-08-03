@@ -255,19 +255,27 @@ class FuzzyCat:
                 KNNGraph = pynndescent.NNDescent(
                     clustersMatrix,
                     metric=self._bitJaccard_njit,
-                    bit_metric = True,
-                    angular_trees = True,
+                    bit_metric=True,
+                    angular_trees=True,
                     n_neighbors=30,
                 )
 
                 neighborIndices, neighborDistances = KNNGraph.neighbor_graph
 
-                offset = 0
+                # Store computed indexes (if a non-zero weight has been assigned
+                # to any of the two edge directions, pick that)
                 for clusterId in range(n_clusters):
                     for i, neighborId in enumerate(neighborIndices[clusterId]):
-                        if neighborId > clusterId:
-                            self._edges[offset + neighborId - clusterId - 1] = 1.0 - neighborDistances[clusterId][i]
-                    offset += n_clusters - 1 - clusterId
+                        if clusterId == neighborId:
+                            continue
+
+                        u, v = min(clusterId, neighborId), max(clusterId, neighborId)
+
+                        idx = u * n_clusters - (u * (u + 1)) // 2 + (v - u - 1)
+                        sim = 1.0 - neighborDistances[clusterId][i]
+
+                        if sim > self._edges[idx]:
+                            self._edges[idx] = sim
             else:
                 # Cycle through all pairs of clusters and compute their similarity
                 k = 0
